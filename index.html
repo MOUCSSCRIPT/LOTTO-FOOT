@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lottofoot Collaboratif</title>
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: #e6f0fa;
+      margin: 0;
+      padding: 0;
+      color: #333;
+    }
+    .container {
+      max-width: 1100px;
+      margin: auto;
+      padding: 20px;
+      background: white;
+      border: 1px solid #ccc;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+      margin-top: 30px;
+      border-radius: 8px;
+    }
+    h1 {
+      text-align: center;
+      color: #005dab;
+      font-size: 26px;
+      border-bottom: 2px solid #005dab;
+      padding-bottom: 10px;
+      margin-bottom: 30px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 25px;
+      background-color: #fdfdfd;
+    }
+    th, td {
+      padding: 12px;
+      border: 1px solid #c3d3e5;
+      text-align: center;
+    }
+    th {
+      background-color: #e9f1fb;
+      color: #005dab;
+      font-weight: bold;
+    }
+    .match-row td {
+      padding: 8px;
+    }
+    .checkbox {
+      transform: scale(0.9);
+      margin: 2px;
+    }
+    .total {
+      font-weight: bold;
+      color: #d62828;
+    }
+    .form-section {
+      margin-bottom: 30px;
+      padding: 10px;
+      background-color: #f1f8ff;
+      border: 1px solid #cce0f5;
+      border-radius: 6px;
+    }
+    button {
+      background-color: #005dab;
+      color: white;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 10px;
+      margin-right: 10px;
+    }
+    button:hover {
+      background-color: #004b94;
+    }
+    .optimized {
+      background-color: #f4a261;
+    }
+    .optimized:hover {
+      background-color: #e08a3b;
+    }
+    .selected-cell {
+      background-color: #d6eaf8;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Lottofoot Collaboratif</h1>
+
+    <table id="grille">
+      <thead>
+        <tr><th>Match</th><th>1</th><th>X</th><th>2</th></tr>
+      </thead>
+      <tbody id="grille-body"></tbody>
+    </table>
+
+    <div class="form-section">
+      <p>Coût de la grille : <span id="prix">2</span> € (max : 324 €)</p>
+      <input type="text" id="joueur" placeholder="Nom du joueur" style="width: 150px;">
+      <label><input type="checkbox" id="confirmation-checkbox"> Je confirme ma participation</label>
+      <br>
+      <button onclick="soumettreGrille()">Soumettre ma grille</button>
+      <button class="optimized" onclick="grilleOptimisee()">Proposer une grille optimisée</button>
+    </div>
+
+    <p>Pot total : <span id="pot">0.00</span> €</p>
+
+    <table>
+      <thead>
+        <tr><th>Joueur</th><th>Mise (€)</th><th>Part (%)</th></tr>
+      </thead>
+      <tbody id="participation-table-body"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const grilleBody = document.getElementById('grille-body');
+    const grillesSoumises = new Set();
+
+    for (let i = 1; i <= 15; i++) {
+      const row = document.createElement('tr');
+      row.className = 'match-row';
+      row.innerHTML = `
+        <td>Match ${i}</td>
+        <td><input class="checkbox" type="checkbox" name="match${i}" value="1"></td>
+        <td><input class="checkbox" type="checkbox" name="match${i}" value="X"></td>
+        <td><input class="checkbox" type="checkbox" name="match${i}" value="2"></td>
+      `;
+      grilleBody.appendChild(row);
+    }
+
+    let totalPot = 0;
+    let participations = [];
+
+    function compterDoublesEtTriples() {
+      let doubles = 0, triples = 0;
+      for (let i = 1; i <= 15; i++) {
+        const checkboxes = document.querySelectorAll(`input[name='match${i}']:checked`);
+        if (checkboxes.length === 2) doubles++;
+        else if (checkboxes.length === 3) triples++;
+      }
+      return { doubles, triples };
+    }
+
+    function calculerPrixGrille() {
+      const { doubles, triples } = compterDoublesEtTriples();
+      const prix = Math.pow(2, doubles) * Math.pow(3, triples);
+      document.getElementById('prix').textContent = prix;
+      return prix;
+    }
+
+    function obtenirGrilleCode() {
+      let code = '';
+      for (let i = 1; i <= 15; i++) {
+        const selections = Array.from(document.querySelectorAll(`input[name='match${i}']:checked`)).map(cb => cb.value).sort();
+        code += selections.join('') + '|';
+      }
+      return code;
+    }
+
+    function mettreAJourStyleCases() {
+      for (let i = 1; i <= 15; i++) {
+        const inputs = document.querySelectorAll(`input[name='match${i}']`);
+        inputs.forEach(input => {
+          if (input.checked) {
+            input.closest('td').classList.add('selected-cell');
+          } else {
+            input.closest('td').classList.remove('selected-cell');
+          }
+        });
+      }
+    }
+
+    document.addEventListener('change', () => {
+      calculerPrixGrille();
+      mettreAJourStyleCases();
+    });
+
+    function soumettreGrille() {
+      const prix = calculerPrixGrille();
+      const confirmation = document.getElementById('confirmation-checkbox').checked;
+      const joueur = document.getElementById('joueur').value.trim() || `Joueur ${participations.length + 1}`;
+      const codeGrille = obtenirGrilleCode();
+
+      if (!confirmation) return alert("Veuillez confirmer votre participation en cochant la case.");
+      if (prix > 324) return alert("Coût de grille > 324 € ! Réduisez les doubles/triples.");
+      if (grillesSoumises.has(codeGrille)) return alert("Cette grille a déjà été jouée ! Veuillez en choisir une différente.");
+
+      for (const g of grillesSoumises) {
+        if (isSubsetGrille(codeGrille, g)) return alert("Une grille contenant vos choix a déjà été jouée !");
+      }
+
+      grillesSoumises.add(codeGrille);
+      totalPot += prix;
+      participations.push({ nom: joueur, mise: prix, code: codeGrille });
+      document.getElementById('pot').textContent = totalPot.toFixed(2);
+      mettreAJourTableParticipations();
+      alert("Grille enregistrée ! Merci.");
+      document.getElementById('confirmation-checkbox').checked = false;
+      document.getElementById('joueur').value = "";
+    }
+
+    function isSubsetGrille(code1, code2) {
+      const tab1 = code1.split('|');
+      const tab2 = code2.split('|');
+      for (let i = 0; i < 15; i++) {
+        const set1 = new Set(tab1[i]);
+        const set2 = new Set(tab2[i]);
+        for (let c of set1) {
+          if (!set2.has(c)) return false;
+        }
+      }
+      return true;
+    }
+
+    function mettreAJourTableParticipations() {
+      const tbody = document.getElementById("participation-table-body");
+      tbody.innerHTML = "";
+      participations.forEach((participant, index) => {
+        const pourcentage = (participant.mise / totalPot) * 100;
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${participant.nom}</td>
+          <td>${participant.mise.toFixed(2)}</td>
+          <td>${pourcentage.toFixed(1)}%</td>
+        `;
+        row.addEventListener("click", () => chargerGrille(participant.code));
+        row.style.cursor = "pointer";
+        row.title = "Cliquer pour voir la grille de ce joueur";
+        tbody.appendChild(row);
+      });
+    }
+
+    function chargerGrille(codeGrille) {
+      const codes = codeGrille.split('|');
+      for (let i = 1; i <= 15; i++) {
+        const valeurs = codes[i - 1] || "";
+        const inputs = document.querySelectorAll(`input[name='match${i}']`);
+        inputs.forEach(input => {
+          input.checked = valeurs.includes(input.value);
+        });
+      }
+      mettreAJourStyleCases();
+      calculerPrixGrille();
+    }
+
+    function grilleOptimisee() {
+      alert("Fonction à implémenter : générer une grille optimale basée sur les choix des joueurs.");
+    }
+  </script>
+</body>
+</html>
